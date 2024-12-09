@@ -151,7 +151,7 @@ if uploaded_files:
 
 
         # Topic modeling and clustering
-        tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering"])
+        tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering", "Word Frequency"])
         
         with tabs[0]:
             num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
@@ -173,6 +173,36 @@ if uploaded_files:
             pdf_df["Cluster"] = clusters
             st.write("### Clusters")
             st.dataframe(pdf_df)
+        with tabs[3]
+                    # Streamlit App - Add Specific Word Frequency Analysis
+            st.header("Specific Word Frequency Analysis")
+            
+            # Input for specific word analysis
+            specific_word = st.text_input("Enter a word to analyze its frequency:")
+            
+            if st.button("Calculate Frequency"):
+                if specific_word:
+                    # Calculate frequency across all documents
+                    combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
+                    all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
+                    total_count = Counter(all_words).get(specific_word.lower(), 0)
+            
+                    # Calculate frequency per document
+                    doc_frequencies = []
+                    for doc in pdf_texts:
+                        words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
+                        doc_count = Counter(words).get(specific_word.lower(), 0)
+                        doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
+            
+                    # Display results
+                    st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
+                    st.write("### Frequency in Each Document:")
+                    st.table(pd.DataFrame(doc_frequencies))
+            
+                else:
+                    st.warning("Please enter a word to analyze.")
+
+
 
 else:
     st.info("Please upload some PDF files.")
