@@ -52,6 +52,33 @@ def extract_text_from_pdf(pdf_path):
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
 
+
+# Function to preprocess and analyze text
+def preprocess_text(text, language='english'):
+    """
+    Tokenizes and filters the input text, removing stopwords and non-alphanumeric characters.
+    """
+    stop_words = set(stopwords.words(language))
+    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))
+    filtered_words = [word for word in words if word.isalnum() and word not in stop_words]
+    return filtered_words
+
+def analyze_texts(pdf_texts, top_n, language='english'):
+    """
+    Analyzes the combined text from multiple documents and returns the top N words with their frequencies.
+    """
+    # Combine all extracted text
+    all_text = " ".join([doc["text"] for doc in pdf_texts])
+    # Preprocess and filter text
+    filtered_words = preprocess_text(all_text, language)
+    # Count word frequencies
+    word_counts = Counter(filtered_words)
+    # Get the top N most common words
+    top_words = word_counts.most_common(top_n)
+    return top_words, word_counts
+
+
+
 # Clear temporary files
 def clear_temp_folder(folder="temp"):
     if os.path.exists(folder):
@@ -134,9 +161,14 @@ if uploaded_files:
 
         # Text analysis
         top_n = st.slider("Select number of top words to display", 1, 20, 10)
-        top_words, word_counts = analyze_texts(pdf_texts, top_n)
-        st.write("### Top Words Across Documents")
-        st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+        if st.button("Analyze Texts"):
+            if pdf_texts:  # Ensure there are uploaded documents
+                top_words, word_counts = analyze_texts(pdf_texts, top_n)
+                st.write("### Top Words Across Documents")
+                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+            else:
+                st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
+
 
         # Topic modeling and clustering
         tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering"])
