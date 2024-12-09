@@ -3,17 +3,26 @@ import os
 import pandas as pd
 import fitz  # PyMuPDF for PDF processing
 import shutil  # For clearing temporary files
-import nltk
-from collections import Counter
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-
-words = word_tokenize(all_text.lower(), language='english')
-
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation, NMF
 from sklearn.cluster import KMeans
+import nltk
+from collections import Counter
+from nltk.corpus import stopwords
+nltk.download('punkt')
+from nltk.tokenize import word_tokenize
+
+words = word_tokenize(all_text.lower(), language='english')
+
+# Custom path for nltk_data
+nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
+nltk.data.path.append(nltk_data_path)
+
+# Download resources to the custom path
+nltk.download('punkt', download_dir=nltk_data_path)
+
+
 # Initialization block for NLTK resources
 
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
@@ -25,6 +34,12 @@ try:
     nltk.download('stopwords', download_dir=nltk_data_path)
 except Exception as e:
     st.error(f"Error downloading NLTK resources: {e}")
+
+from nltk.tokenize.punkt import PunktSentenceTokenizer
+from nltk.data import find
+
+tokenizer_path = find('tokenizers/punkt/english.pickle')
+tokenizer = PunktSentenceTokenizer(tokenizer_path)
 
 
 # Text preprocessing using NLTK
