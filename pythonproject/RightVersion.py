@@ -138,6 +138,10 @@ if uploaded_files:
         pdf_df = pd.DataFrame(pdf_texts)
         st.write("### Extracted Data")
         st.dataframe(pdf_df)
+        # Option to download the DataFrame as a CSV
+        csv_data = pdf_df.to_csv(index=False)
+        st.download_button(label="Download CSV", data=csv_data, file_name="extracted_texts.csv", mime="text/csv")
+
 
         # Text analysis
         top_n = st.slider("Select number of top words to display", 1, 20, 10)
