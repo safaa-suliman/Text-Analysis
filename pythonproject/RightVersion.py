@@ -216,7 +216,7 @@ if uploaded_files:
 
                     if filtered_texts:
                         # Apply NMF to the filtered texts
-                        nmf_topics = nmf_topic_modeling_on_specific_word(filtered_texts, num_topics=num_topics_nmf)
+                        nmf_topics = nmf_topic_modeling(filtered_texts, num_topics=num_topics_nmf)
                         st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
                         for topic in nmf_topics:
                             st.write(topic)
