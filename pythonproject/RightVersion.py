@@ -166,7 +166,7 @@ if uploaded_files:
             for topic in nmf_topics:
                 st.write(topic)
 
-        with tabs[2]:
+       
             num_clusters = st.slider("Select number of clusters", 2, 10, 3)
             clusters = clustering(pdf_texts, num_clusters)
             pdf_df["Cluster"] = clusters
