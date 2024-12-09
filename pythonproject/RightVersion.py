@@ -202,6 +202,28 @@ if uploaded_files:
                     st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
                     st.write("### Frequency in Each Document:")
                     st.table(pd.DataFrame(doc_frequencies))
+
+
+                
+            # Slider for number of topics (moved outside button logic)
+            num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
+
+            # Add button for applying NMF based on the specific word, with a unique key
+            if st.button("Apply NMF Based on Specific Word", key="apply_nmf_specific_word"):
+                if specific_word:
+                    # Filter texts based on the specific word
+                    filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
+
+                    if filtered_texts:
+                        # Apply NMF to the filtered texts
+                        nmf_topics = nmf_topic_modeling_on_specific_word(filtered_texts, num_topics=num_topics_nmf)
+                        st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
+                        for topic in nmf_topics:
+                            st.write(topic)
+                    else:
+                        st.warning(f"No documents contain the word '{specific_word}'.")
+                else:
+                    st.warning("Please enter a word to perform NMF.")
             
                 else:
                     st.warning("Please enter a word to analyze.")
