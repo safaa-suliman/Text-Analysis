@@ -190,18 +190,21 @@ if uploaded_files:
                     combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
                     all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
                     total_count = Counter(all_words).get(specific_word.lower(), 0)
-            
-                    # Calculate frequency per document
-                    doc_frequencies = []
-                    for doc in pdf_texts:
-                        words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
-                        doc_count = Counter(words).get(specific_word.lower(), 0)
-                        doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
-            
-                    # Display results
-                    st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
-                    st.write("### Frequency in Each Document:")
-                    st.table(pd.DataFrame(doc_frequencies))
+
+                    if total_count == 0:
+                        st.write("")
+                    else:
+                        # Calculate frequency per document
+                        doc_frequencies = []
+                        for doc in pdf_texts:
+                            words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
+                            doc_count = Counter(words).get(specific_word.lower(), 0)
+                            doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
+                
+                        # Display results
+                        st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
+                        st.write("### Frequency in Each Document:")
+                        st.table(pd.DataFrame(doc_frequencies))
 
 
                 
