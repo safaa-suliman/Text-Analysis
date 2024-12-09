@@ -10,8 +10,6 @@ from sklearn.cluster import KMeans
 import nltk
 from collections import Counter
 from nltk.corpus import stopwords
-nltk.download('punkt')
-nltk.download('stopwords')
 from nltk.tokenize import word_tokenize
 
 # Custom path for nltk_data
@@ -24,6 +22,12 @@ try:
     nltk.download('stopwords', download_dir=nltk_data_path)
 except Exception as e:
     st.error(f"Error downloading NLTK resources: {e}")
+
+# Ensure punkt tab is available
+try:
+    nltk.download('punkt_tab', download_dir=nltk_data_path)
+except Exception as e:
+    st.error(f"Error downloading punkt_tab resource: {e}")
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
