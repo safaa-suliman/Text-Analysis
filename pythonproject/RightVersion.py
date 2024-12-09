@@ -185,53 +185,81 @@ if uploaded_files:
             specific_word = st.text_input("Enter a word to analyze its frequency:")
             
             if st.button("Calculate Frequency"):
-                if specific_word:
-                    # Calculate frequency across all documents
-                    combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
-                    all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
-                    total_count = Counter(all_words).get(specific_word.lower(), 0)
+                # Ensure Streamlit Session State is used to persist results
+                if "word_frequency_results" not in st.session_state:
+                    st.session_state.word_frequency_results = None
+                if "nmf_results" not in st.session_state:
+                    st.session_state.nmf_results = None
 
-                    st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
-                    if total_count == 0:
-                        st.write("")
-                    else:
-                        # Calculate frequency per document
-                        doc_frequencies = []
-                        for doc in pdf_texts:
-                            words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
-                            doc_count = Counter(words).get(specific_word.lower(), 0)
-                            doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
+            # Word Frequency Analysis
+            if uploaded_files:
+                st.header("Specific Word Frequency Analysis")
                 
-                        # Display results
-                       
-                        st.write("### Frequency in Each Document:")
-                        st.table(pd.DataFrame(doc_frequencies))
-
-
-                
-            # Slider for number of topics (moved outside button logic)
-            num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
-
-            # Add button for applying NMF based on the specific word, with a unique key
-            if st.button("Apply NMF Based on Specific Word", key="apply_nmf_specific_word"):
-                if specific_word:
-                    # Filter texts based on the specific word
-                    filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
-
-                    if filtered_texts:
-                        # Apply NMF to the filtered texts
-                        nmf_topics = nmf_topic_modeling(filtered_texts, num_topics=num_topics_nmf)
-                        st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
-                        for topic in nmf_topics:
-                            st.write(topic)
-                    else:
-                        st.warning(f"No documents contain the word '{specific_word}'.")
-                else:
-                    st.warning("Please enter a word to perform NMF.")
+                # Input for specific word analysis
+                specific_word = st.text_input("Enter a word to analyze its frequency:")
             
-            else:
-                    st.warning("Please enter a word to analyze.")
-
+                if st.button("Calculate Frequency"):
+                    if specific_word:
+                        # Calculate frequency across all documents
+                        combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
+                        all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
+                        total_count = Counter(all_words).get(specific_word.lower(), 0)
+            
+                        # Store results in session state
+                        st.session_state.word_frequency_results = {
+                            "word": specific_word,
+                            "total_count": total_count,
+                            "doc_frequencies": [
+                                {
+                                    "Document": doc["filename"],
+                                    "Frequency": Counter(
+                                        word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
+                                    ).get(specific_word.lower(), 0)
+                                }
+                                for doc in pdf_texts
+                            ]
+                        }
+                    else:
+                        st.warning("Please enter a word to analyze.")
+            
+                # Display results if available
+                if st.session_state.word_frequency_results:
+                    result = st.session_state.word_frequency_results
+                    st.write(f"The word **'{result['word']}'** appears **{result['total_count']}** times across all documents.")
+                    if result["total_count"] > 0:
+                        st.write("### Frequency in Each Document:")
+                        st.table(pd.DataFrame(result["doc_frequencies"]))
+            
+                # Slider for number of topics (moved outside button logic)
+                num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
+            
+                # Add button for applying NMF based on the specific word
+                if st.button("Apply NMF Based on Specific Word", key="apply_nmf_specific_word"):
+                    if specific_word:
+                        # Filter texts based on the specific word
+                        filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
+            
+                        if filtered_texts:
+                            # Apply NMF to the filtered texts
+                            nmf_topics = nmf_topic_modeling(filtered_texts, num_topics=num_topics_nmf)
+            
+                            # Store results in session state
+                            st.session_state.nmf_results = {
+                                "specific_word": specific_word,
+                                "topics": nmf_topics
+                            }
+                        else:
+                            st.warning(f"No documents contain the word '{specific_word}'.")
+                    else:
+                        st.warning("Please enter a word to perform NMF.")
+            
+                # Display NMF results if available
+                if st.session_state.nmf_results:
+                    st.write(f"### NMF Topic Modeling Results for documents containing the word '{st.session_state.nmf_results['specific_word']}':")
+                    for topic in st.session_state.nmf_results["topics"]:
+                        st.write(topic)
+            
+        
 
 
 else:
