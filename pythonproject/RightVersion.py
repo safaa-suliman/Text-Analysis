@@ -225,7 +225,7 @@ if uploaded_files:
                 else:
                     st.warning("Please enter a word to perform NMF.")
             
-                else:
+            else:
                     st.warning("Please enter a word to analyze.")
 
 
