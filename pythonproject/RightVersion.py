@@ -133,9 +133,9 @@ if uploaded_files:
             pdf_texts.append({"filename": uploaded_file.name, "text": text})
         else:
             st.warning(f"File {uploaded_file.name} contains no readable text.")
-
-    if pdf_texts:
-        tabs = st.tabs(["Upload & Analyze", "Specific Word Analysis", "Topic Modeling"])
+    
+    tabs = st.tabs(["Upload & Analyze", "Specific Word Analysis", "Topic Modeling"])
+    if pdf_texts:  
         with tabs[0]:
             pdf_df = pd.DataFrame(pdf_texts)
             st.write("### Extracted Data")
@@ -165,8 +165,6 @@ if uploaded_files:
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
-
-       
             num_clusters = st.slider("Select number of clusters", 2, 10, 3)
             clusters = clustering(pdf_texts, num_clusters)
             pdf_df["Cluster"] = clusters
