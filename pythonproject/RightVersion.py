@@ -7,31 +7,25 @@ import nltk
 from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+
+words = word_tokenize(all_text.lower(), language='english')
+
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation, NMF
 from sklearn.cluster import KMeans
+# Initialization block for NLTK resources
 
-# Ensure NLTK resources are available
-nltk_data_dir = "./nltk_data"
-if not os.path.exists(nltk_data_dir):
-    os.makedirs(nltk_data_dir, exist_ok=True)
+nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
+nltk.data.path.append(nltk_data_path)
 
-nltk.data.path.append(nltk_data_dir)
-resources = ['punkt', 'stopwords']
-for resource in resources:
-    try:
-        nltk.data.find(f'tokenizers/{resource}')
-    except LookupError:
-        nltk.download(resource, download_dir=nltk_data_dir)
+# Download required NLTK data
+try:
+    nltk.download('punkt', download_dir=nltk_data_path)
+    nltk.download('stopwords', download_dir=nltk_data_path)
+except Exception as e:
+    st.error(f"Error downloading NLTK resources: {e}")
 
-# Utility to get stopwords for a specific language
-def get_stopwords(language='english'):
-    try:
-        return set(stopwords.words(language))
-    except Exception:
-        st.warning(f"Stopwords for language '{language}' are unavailable.")
-        return set()
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
@@ -67,15 +61,32 @@ def analyze_texts(pdf_texts, top_n, language='english'):
     """
     Analyzes the combined text from multiple documents and returns the top N words with their frequencies.
     """
+    # Initialize NLTK resources (if needed)
+    nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
+    nltk.data.path.append(nltk_data_path)
+
+    try:
+        nltk.download('punkt', download_dir=nltk_data_path)
+        nltk.download('stopwords', download_dir=nltk_data_path)
+    except Exception as e:
+        st.error(f"Error downloading NLTK resources: {e}")
+        return [], Counter()
+
     # Combine all extracted text
     all_text = " ".join([doc["text"] for doc in pdf_texts])
+    
     # Preprocess and filter text
-    filtered_words = preprocess_text(all_text, language)
+    stop_words = set(nltk.corpus.stopwords.words(language))
+    words = word_tokenize(re.sub(r'\W+', ' ', all_text.lower()), language=language)
+    filtered_words = [word for word in words if word.isalnum() and word not in stop_words]
+    
     # Count word frequencies
     word_counts = Counter(filtered_words)
     # Get the top N most common words
     top_words = word_counts.most_common(top_n)
+    
     return top_words, word_counts
+
 
 
 
