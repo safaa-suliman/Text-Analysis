@@ -135,32 +135,31 @@ if uploaded_files:
             st.warning(f"File {uploaded_file.name} contains no readable text.")
 
     if pdf_texts:
-        pdf_df = pd.DataFrame(pdf_texts)
-        st.write("### Extracted Data")
-        st.dataframe(pdf_df)
-
-        # Text analysis
-        top_n = st.slider("Select number of top words to display", 1, 20, 10)
-        if st.button("Analyze Texts"):
-            if pdf_texts:  # Ensure there are uploaded documents
-                top_words, word_counts = analyze_texts(pdf_texts, top_n)
-                st.write("### Top Words Across Documents")
-                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
-            else:
-                st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
-
-
-        # Topic modeling and clustering
-        tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering"])
-        
+        tabs = st.tabs(["Upload & Analyze", "Specific Word Analysis", "Topic Modeling"])
         with tabs[0]:
+            pdf_df = pd.DataFrame(pdf_texts)
+            st.write("### Extracted Data")
+            st.dataframe(pdf_df)
+    
+            # Text analysis
+            top_n = st.slider("Select number of top words to display", 1, 20, 10)
+            if st.button("Analyze Texts"):
+                if pdf_texts:  # Ensure there are uploaded documents
+                    top_words, word_counts = analyze_texts(pdf_texts, top_n)
+                    st.write("### Top Words Across Documents")
+                    st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+                else:
+                    st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
+
+
+        with tabs[1]:
             num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
             lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### LDA Topics")
             for topic in lda_topics:
                 st.write(topic)
 
-        with tabs[1]:
+        with tabs[2]:
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
             nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
