@@ -173,8 +173,8 @@ if uploaded_files:
             pdf_df["Cluster"] = clusters
             st.write("### Clusters")
             st.dataframe(pdf_df)
-        with tabs[3]
-                    # Streamlit App - Add Specific Word Frequency Analysis
+        with tabs[3]:
+            # Streamlit App - Add Specific Word Frequency Analysis
             st.header("Specific Word Frequency Analysis")
             
             # Input for specific word analysis
