@@ -151,7 +151,7 @@ if uploaded_files:
 
 
         # Topic modeling and clustering
-        tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering", "Word Frequency"])
+        tabs = st.tabs(["Topic Modeling", "Word Frequency"])
         
         with tabs[0]:
             num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
@@ -160,20 +160,20 @@ if uploaded_files:
             for topic in lda_topics:
                 st.write(topic)
 
-        with tabs[1]:
+        
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
             nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
 
-        with tabs[2]:
+        
             num_clusters = st.slider("Select number of clusters", 2, 10, 3)
             clusters = clustering(pdf_texts, num_clusters)
             pdf_df["Cluster"] = clusters
             st.write("### Clusters")
             st.dataframe(pdf_df)
-        with tabs[3]:
+        with tabs[1]:
             # Streamlit App - Add Specific Word Frequency Analysis
             st.header("Specific Word Frequency Analysis")
             
