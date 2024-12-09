@@ -11,41 +11,24 @@ import nltk
 from collections import Counter
 from nltk.corpus import stopwords
 nltk.download('punkt')
+nltk.download('stopwords')
 from nltk.tokenize import word_tokenize
-
-words = word_tokenize(all_text.lower(), language='english')
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
 nltk.data.path.append(nltk_data_path)
 
-# Download resources to the custom path
-nltk.download('punkt', download_dir=nltk_data_path)
-
-
-# Initialization block for NLTK resources
-
-nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
-nltk.data.path.append(nltk_data_path)
-
-# Download required NLTK data
+# Ensure required NLTK resources are downloaded
 try:
     nltk.download('punkt', download_dir=nltk_data_path)
     nltk.download('stopwords', download_dir=nltk_data_path)
 except Exception as e:
     st.error(f"Error downloading NLTK resources: {e}")
 
-from nltk.tokenize.punkt import PunktSentenceTokenizer
-from nltk.data import find
-
-tokenizer_path = find('tokenizers/punkt/english.pickle')
-tokenizer = PunktSentenceTokenizer(tokenizer_path)
-
-
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
-    stop_words = get_stopwords(language)
-    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))
+    stop_words = set(stopwords.words(language))
+    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))  # Tokenize and clean text
     return [word for word in words if word.isalnum() and word not in stop_words]
 
 # Extract text from PDFs
@@ -61,65 +44,23 @@ def extract_text_from_pdf(pdf_path):
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
 
-
-# Function to preprocess and analyze text
-def preprocess_text(text, language='english'):
-    """
-    Tokenizes and filters the input text, removing stopwords and non-alphanumeric characters.
-    """
-    stop_words = set(stopwords.words(language))
-    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))
-    filtered_words = [word for word in words if word.isalnum() and word not in stop_words]
-    return filtered_words
-
+# Analyze texts
 def analyze_texts(pdf_texts, top_n, language='english'):
     """
     Analyzes the combined text from multiple documents and returns the top N words with their frequencies.
     """
-    # Initialize NLTK resources (if needed)
-    nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
-    nltk.data.path.append(nltk_data_path)
-
-    try:
-        nltk.download('punkt', download_dir=nltk_data_path)
-        nltk.download('stopwords', download_dir=nltk_data_path)
-    except Exception as e:
-        st.error(f"Error downloading NLTK resources: {e}")
-        return [], Counter()
-
     # Combine all extracted text
     all_text = " ".join([doc["text"] for doc in pdf_texts])
     
     # Preprocess and filter text
-    stop_words = set(nltk.corpus.stopwords.words(language))
-    words = word_tokenize(re.sub(r'\W+', ' ', all_text.lower()), language=language)
-    filtered_words = [word for word in words if word.isalnum() and word not in stop_words]
+    filtered_words = preprocess_text(all_text, language)
     
     # Count word frequencies
     word_counts = Counter(filtered_words)
+    
     # Get the top N most common words
     top_words = word_counts.most_common(top_n)
     
-    return top_words, word_counts
-
-
-
-
-# Clear temporary files
-def clear_temp_folder(folder="temp"):
-    if os.path.exists(folder):
-        try:
-            shutil.rmtree(folder)
-        except Exception as e:
-            print(f"Error removing {folder}: {e}")
-    os.makedirs(folder, exist_ok=True)
-
-# Analyze texts
-def analyze_texts(pdf_texts, top_n, language='english'):
-    all_text = " ".join([doc["text"] for doc in pdf_texts])
-    filtered_words = preprocess_text(all_text, language)
-    word_counts = Counter(filtered_words)
-    top_words = word_counts.most_common(top_n)
     return top_words, word_counts
 
 # Topic Modeling using LDA
@@ -154,6 +95,15 @@ def clustering(pdf_texts, num_clusters=3):
     tfidf_matrix = vectorizer.fit_transform([doc["text"] for doc in pdf_texts])
     kmeans = KMeans(n_clusters=num_clusters, random_state=42).fit(tfidf_matrix)
     return kmeans.labels_
+
+# Clear temporary files
+def clear_temp_folder(folder="temp"):
+    if os.path.exists(folder):
+        try:
+            shutil.rmtree(folder)
+        except Exception as e:
+            print(f"Error removing {folder}: {e}")
+    os.makedirs(folder, exist_ok=True)
 
 # Streamlit App
 st.set_page_config(page_title="Document Analysis Webpage", page_icon="📄", layout="wide")
@@ -198,6 +148,7 @@ if uploaded_files:
 
         # Topic modeling and clustering
         tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering"])
+        
         with tabs[0]:
             num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
             lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
