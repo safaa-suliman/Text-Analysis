@@ -153,22 +153,102 @@ if uploaded_files:
 
 
         with tabs[1]:
-            num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
-            lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
-            st.write("### LDA Topics")
-            for topic in lda_topics:
-                st.write(topic)
+            st.header("Specific Word Frequency")
+            
+            # Input for specific word analysis
+            specific_word = st.text_input("Enter a word to analyze its frequency:")
+
+            # "Calculate Frequency" button with a unique key
+            if st.button("Calculate Frequency", key="calculate_frequency"):
+                if specific_word:
+                    if 'top_words' in st.session_state and 'word_counts' in st.session_state:
+                        if st.session_state.top_words and st.session_state.word_counts:  # Check if they're not empty
+                            specific_word_count = st.session_state.word_counts.get(specific_word.lower(), 0)
+                            
+                            # Store results in session state for persistence
+                            st.session_state["specific_word_result"] = {
+                                "word": specific_word,
+                                "count": specific_word_count,
+                                "frequencies_per_doc": []
+                            }
+
+                            # Calculate frequency for each document
+                            word_frequencies_per_doc = []
+                            for doc in pdf_texts:
+                                # Tokenize and preprocess document text
+                                words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
+                                doc_specific_word_count = Counter(words).get(specific_word.lower(), 0)
+                                word_frequencies_per_doc.append({
+                                    "Document": doc["filename"],
+                                    "Frequency": doc_specific_word_count
+                                })
+
+                            # Store document frequencies in session state
+                            st.session_state["specific_word_result"]["frequencies_per_doc"] = word_frequencies_per_doc
+
+                        else:
+                            st.warning("The session state variables are empty. Please run the analysis first.")
+                    else:
+                        st.info("Click 'Analyze Texts' first to perform the analysis.")
+                else:
+                    st.warning("Please enter a word to analyze.")
+
+            # Display previously calculated frequency result if available, with a unique button key
+            if "specific_word_result" in st.session_state and not st.button("Recalculate Frequency", key="recalculate_frequency"):
+                result = st.session_state["specific_word_result"]
+                st.write(f"The word **'{result['word']}'** appears **{result['count']}** times.")
+                frequency_df = pd.DataFrame(result["frequencies_per_doc"])
+                st.write(f"The Frequency of **'{result['word']}'** in Each Document:")
+                st.table(frequency_df)
+
+            # Slider for number of topics (moved outside button logic)
+            num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
+
+            # Add button for applying NMF based on the specific word, with a unique key
+            if st.button("Apply NMF Based on Specific Word", key="apply_nmf_specific_word"):
+                if specific_word:
+                    # Filter texts based on the specific word
+                    filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
+
+                    if filtered_texts:
+                        # Apply NMF to the filtered texts
+                        nmf_topics = nmf_topic_modeling_on_specific_word(filtered_texts, num_topics=num_topics_nmf)
+                        st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
+                        for topic in nmf_topics:
+                            st.write(topic)
+                    else:
+                        st.warning(f"No documents contain the word '{specific_word}'.")
+                else:
+                    st.warning("Please enter a word to perform NMF.")
 
         with tabs[2]:
-            num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
-            nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
-            st.write("### NMF Topics")
+            st.header(" Topic Modeling")
+            # Perform Topic Modeling with LDA
+            num_topics_lda = st.slider("Select the Number of Topics (LDA):", 2, 10, 3, key="num_topics_lda")
+            topics_lda = topic_modeling([doc["text"] for doc in pdf_texts], num_topics=num_topics_lda)
+            st.write("### LDA Topic Modeling Results:")
+            for topic in topics_lda:
+                st.write(topic)
+
+            # Perform Clustering for LDA
+            num_clusters_lda = st.slider("Select the Number of Clusters (LDA):", 2, 10, 3, key="num_clusters_lda")
+            clusters_lda = clustering(pdf_texts, num_clusters=num_clusters_lda)
+            pdf_df["Cluster (LDA)"] = clusters_lda
+            st.write("### Clustered Documents (LDA):")
+            st.dataframe(pdf_df)
+
+            # Perform Topic Modeling with NMF
+            num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf")
+            nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics=num_topics_nmf)
+            st.write("### NMF Topic Modeling Results:")
             for topic in nmf_topics:
                 st.write(topic)
-            num_clusters = st.slider("Select number of clusters", 2, 10, 3)
-            clusters = clustering(pdf_texts, num_clusters)
-            pdf_df["Cluster"] = clusters
-            st.write("### Clusters")
+
+            # Perform Clustering for NMF
+            num_clusters_nmf = st.slider("Select the Number of Clusters (NMF):", 2, 10, 3, key="num_clusters_nmf")
+            clusters_nmf = clustering(pdf_texts, num_clusters=num_clusters_nmf)
+            pdf_df["Cluster (NMF)"] = clusters_nmf
+            st.write("### Clustered Documents (NMF):")
             st.dataframe(pdf_df)
 
 else:
