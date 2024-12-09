@@ -191,6 +191,7 @@ if uploaded_files:
                     all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
                     total_count = Counter(all_words).get(specific_word.lower(), 0)
 
+                     st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
                     if total_count == 0:
                         st.write("")
                     else:
@@ -202,7 +203,7 @@ if uploaded_files:
                             doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
                 
                         # Display results
-                        st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
+                       
                         st.write("### Frequency in Each Document:")
                         st.table(pd.DataFrame(doc_frequencies))
 
