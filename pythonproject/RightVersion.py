@@ -133,27 +133,46 @@ if uploaded_files:
             pdf_texts.append({"filename": uploaded_file.name, "text": text})
         else:
             st.warning(f"File {uploaded_file.name} contains no readable text.")
-    
-    
-    if pdf_texts:  
-        tabs = st.tabs(["Upload & Analyze", "Specific Word Analysis", "Topic Modeling & Clustering"])
-if pdf_texts:
-    with tabs[0]:
-        st.write("### Extracted Text")
-        st.dataframe(pd.DataFrame(pdf_texts))
-        top_n = st.slider("Number of Top Words", 1, 20, 10)
-        if st.button("Analyze Texts"):
-            top_words, word_counts = analyze_texts(pdf_texts, top_n)
-            st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
 
-    with tabs[1]:
-        specific_word = st.text_input("Word to Analyze")
-        if st.button("Calculate Frequency"):
-            frequencies = [
-                {"Document": doc["filename"], "Frequency": doc["text"].lower().count(specific_word.lower())}
-                for doc in pdf_texts
-            ]
-            st.table(pd.DataFrame(frequencies))
+    if pdf_texts:
+        pdf_df = pd.DataFrame(pdf_texts)
+        st.write("### Extracted Data")
+        st.dataframe(pdf_df)
+
+        # Text analysis
+        top_n = st.slider("Select number of top words to display", 1, 20, 10)
+        if st.button("Analyze Texts"):
+            if pdf_texts:  # Ensure there are uploaded documents
+                top_words, word_counts = analyze_texts(pdf_texts, top_n)
+                st.write("### Top Words Across Documents")
+                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+            else:
+                st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
+
+
+        # Topic modeling and clustering
+        tabs = st.tabs(["LDA Topic Modeling", "NMF Topic Modeling", "Clustering"])
+        
+        with tabs[0]:
+            num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
+            lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            st.write("### LDA Topics")
+            for topic in lda_topics:
+                st.write(topic)
+
+        with tabs[1]:
+            num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
+            nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            st.write("### NMF Topics")
+            for topic in nmf_topics:
+                st.write(topic)
+
+        with tabs[2]:
+            num_clusters = st.slider("Select number of clusters", 2, 10, 3)
+            clusters = clustering(pdf_texts, num_clusters)
+            pdf_df["Cluster"] = clusters
+            st.write("### Clusters")
+            st.dataframe(pdf_df)
 
 else:
     st.info("Please upload some PDF files.")
