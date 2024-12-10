@@ -166,8 +166,24 @@ if uploaded_files:
                 st.write("### Clusters")
                 st.dataframe(pdf_df)
 
-        with tabs[1]:
-            # Word Frequency
+        with tabs[1]:  # Word Frequency Tab
+            st.header("Text Analysis and Word Frequency")
+        
+            # Analyze Text Button
+            top_n = st.slider("Select number of top words to display", 1, 20, 10)
+            if st.button("Analyze Texts"):
+                if pdf_texts:  # Ensure there are uploaded documents
+                    top_words, word_counts = analyze_texts(pdf_texts, top_n)
+                    st.session_state.results["top_words"] = top_words
+                else:
+                    st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
+            
+            # Display Top Words
+            if st.session_state.results["top_words"]:
+                st.write("### Top Words Across Documents")
+                st.table(pd.DataFrame(st.session_state.results["top_words"], columns=["Word", "Frequency"]))
+        
+            # Word Frequency Analysis for a Specific Word
             specific_word = st.text_input("Enter a word to analyze its frequency:")
             if st.button("Calculate Word Frequency"):
                 combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
@@ -178,24 +194,11 @@ if uploaded_files:
                     for doc in pdf_texts
                 ]
                 st.session_state.results["word_frequency"] = {"total": total_count, "per_doc": doc_frequencies}
-
+        
             if st.session_state.results["word_frequency"]:
                 st.write(f"### Word Frequency: '{specific_word}'")
                 st.write(f"Total occurrences across documents: {st.session_state.results['word_frequency']['total']}")
                 st.table(pd.DataFrame(st.session_state.results["word_frequency"]["per_doc"]))
-
-            # NMF Specific Word
-            if st.button("Apply NMF Based on Specific Word"):
-                if specific_word:
-                    filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
-                    if filtered_texts:
-                        st.session_state.results["nmf_specific_word"] = nmf_topic_modeling(filtered_texts, num_topics_nmf)
-                else:
-                    st.warning("Please enter a word to perform NMF.")
-            if st.session_state.results["nmf_specific_word"]:
-                st.write(f"### NMF Topics for Documents with '{specific_word}'")
-                for topic in st.session_state.results["nmf_specific_word"]:
-                    st.write(topic)
 
 else:
     st.info("Please upload some PDF files.")
