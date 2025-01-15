@@ -23,6 +23,12 @@ try:
 except Exception as e:
     st.error(f"Error downloading NLTK resources: {e}")
 
+# Ensure punkt tab is available
+try:
+    nltk.download('punkt_tab', download_dir=nltk_data_path)
+except Exception as e:
+    st.error(f"Error downloading punkt_tab resource: {e}")
+
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
     stop_words = set(stopwords.words(language))
@@ -44,10 +50,21 @@ def extract_text_from_pdf(pdf_path):
 
 # Analyze texts
 def analyze_texts(pdf_texts, top_n, language='english'):
+    """
+    Analyzes the combined text from multiple documents and returns the top N words with their frequencies.
+    """
+    # Combine all extracted text
     all_text = " ".join([doc["text"] for doc in pdf_texts])
+    
+    # Preprocess and filter text
     filtered_words = preprocess_text(all_text, language)
+    
+    # Count word frequencies
     word_counts = Counter(filtered_words)
+    
+    # Get the top N most common words
     top_words = word_counts.most_common(top_n)
+    
     return top_words, word_counts
 
 # Topic Modeling using LDA
@@ -99,17 +116,6 @@ st.title("A Data Analyst From Sudan")
 st.write("I am passionate about Data Science")
 st.write("[My GitHub >](https://github.com/safa-suliman)")
 
-# Initialize session_state for results persistence
-if "results" not in st.session_state:
-    st.session_state.results = {
-        "top_words": None,
-        "lda_topics": None,
-        "nmf_topics": None,
-        "clusters": None,
-        "word_frequency": None,
-        "nmf_specific_word": None,
-    }
-
 # File uploader
 uploaded_files = st.file_uploader("Upload multiple PDF files", type="pdf", accept_multiple_files=True)
 
@@ -132,73 +138,101 @@ if uploaded_files:
         pdf_df = pd.DataFrame(pdf_texts)
         st.write("### Extracted Data")
         st.dataframe(pdf_df)
+        # Option to download the DataFrame as a CSV
         csv_data = pdf_df.to_csv(index=False)
         st.download_button(label="Download CSV", data=csv_data, file_name="extracted_texts.csv", mime="text/csv")
 
-        # Tabs
-        tabs = st.tabs(["Topic Modeling", "Word Frequency"])
 
-        with tabs[0]:
-            # LDA Topics
-            num_topics_lda = st.slider("Select number of LDA topics", 2, 10, 3)
-            if st.button("Generate LDA Topics"):
-                st.session_state.results["lda_topics"] = topic_modeling([doc["text"] for doc in pdf_texts], num_topics_lda)
-            if st.session_state.results["lda_topics"]:
-                st.write("### LDA Topics")
-                for topic in st.session_state.results["lda_topics"]:
-                    st.write(topic)
-
-            # NMF Topics
-            num_topics_nmf = st.slider("Select number of NMF topics", 2, 10, 3)
-            if st.button("Generate NMF Topics"):
-                st.session_state.results["nmf_topics"] = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics_nmf)
-            if st.session_state.results["nmf_topics"]:
-                st.write("### NMF Topics")
-                for topic in st.session_state.results["nmf_topics"]:
-                    st.write(topic)
-
-            # Clustering
-            num_clusters = st.slider("Select number of clusters", 2, 10, 3)
-            if st.button("Generate Clusters"):
-                st.session_state.results["clusters"] = clustering(pdf_texts, num_clusters)
-                pdf_df["Cluster"] = st.session_state.results["clusters"]
-            if st.session_state.results["clusters"] is not None:
-                st.write("### Clusters")
-                st.dataframe(pdf_df)
-
-        with tabs[1]:  # Word Frequency Tab
-            st.header("Text Analysis and Word Frequency")
-        
-            # Analyze Text Button
-            top_n = st.slider("Select number of top words to display", 1, 20, 10)
-            if st.button("Analyze Texts"):
-                if pdf_texts:  # Ensure there are uploaded documents
-                    top_words, word_counts = analyze_texts(pdf_texts, top_n)
-                    st.session_state.results["top_words"] = top_words
-                else:
-                    st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
-            
-            # Display Top Words
-            if st.session_state.results["top_words"]:
+        # Text analysis
+        top_n = st.slider("Select number of top words to display", 1, 20, 10)
+        if st.button("Analyze Texts"):
+            if pdf_texts:  # Ensure there are uploaded documents
+                top_words, word_counts = analyze_texts(pdf_texts, top_n)
                 st.write("### Top Words Across Documents")
-                st.table(pd.DataFrame(st.session_state.results["top_words"], columns=["Word", "Frequency"]))
+                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+            else:
+                st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
+
+
+        # Topic modeling and clustering
+        tabs = st.tabs(["Topic Modeling", "Word Frequency"])
         
-            # Word Frequency Analysis for a Specific Word
+        with tabs[0]:
+            num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
+            lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            st.write("### LDA Topics")
+            for topic in lda_topics:
+                st.write(topic)
+
+        
+            num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
+            nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            st.write("### NMF Topics")
+            for topic in nmf_topics:
+                st.write(topic)
+
+        
+            num_clusters = st.slider("Select number of clusters", 2, 10, 3)
+            clusters = clustering(pdf_texts, num_clusters)
+            pdf_df["Cluster"] = clusters
+            st.write("### Clusters")
+            st.dataframe(pdf_df)
+        with tabs[1]:
+            # Streamlit App - Add Specific Word Frequency Analysis
+            st.header("Specific Word Frequency Analysis")
+            
+            # Input for specific word analysis
             specific_word = st.text_input("Enter a word to analyze its frequency:")
-            if st.button("Calculate Word Frequency"):
-                combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
-                all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
-                total_count = Counter(all_words).get(specific_word.lower(), 0)
-                doc_frequencies = [
-                    {"Document": doc["filename"], "Frequency": Counter(word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))).get(specific_word.lower(), 0)}
-                    for doc in pdf_texts
-                ]
-                st.session_state.results["word_frequency"] = {"total": total_count, "per_doc": doc_frequencies}
+            
+            if st.button("Calculate Frequency"):
+                if specific_word:
+                    # Calculate frequency across all documents
+                    combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
+                    all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
+                    total_count = Counter(all_words).get(specific_word.lower(), 0)
+
+                    st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
+                    if total_count == 0:
+                        st.write("")
+                    else:
+                        # Calculate frequency per document
+                        doc_frequencies = []
+                        for doc in pdf_texts:
+                            words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
+                            doc_count = Counter(words).get(specific_word.lower(), 0)
+                            doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
+                
+                        # Display results
+                       
+                        st.write("### Frequency in Each Document:")
+                        st.table(pd.DataFrame(doc_frequencies))
+
+
+                
+            # Slider for number of topics (moved outside button logic)
+            num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
+
+            # Add button for applying NMF based on the specific word, with a unique key
+            if st.button("Apply NMF Based on Specific Word", key="apply_nmf_specific_word"):
+                if specific_word:
+                    # Filter texts based on the specific word
+                    filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
+
+                    if filtered_texts:
+                        # Apply NMF to the filtered texts
+                        nmf_topics = nmf_topic_modeling(filtered_texts, num_topics=num_topics_nmf)
+                        st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
+                        for topic in nmf_topics:
+                            st.write(topic)
+                    else:
+                        st.warning(f"No documents contain the word '{specific_word}'.")
+                else:
+                    st.warning("Please enter a word to perform NMF.")
+            
+            else:
+                    st.warning("Please enter a word to analyze.")
         
-            if st.session_state.results["word_frequency"]:
-                st.write(f"### Word Frequency: '{specific_word}'")
-                st.write(f"Total occurrences across documents: {st.session_state.results['word_frequency']['total']}")
-                st.table(pd.DataFrame(st.session_state.results["word_frequency"]["per_doc"]))
+
 
 else:
     st.info("Please upload some PDF files.")
