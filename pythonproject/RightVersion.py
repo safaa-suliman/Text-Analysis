@@ -5,7 +5,7 @@ import fitz  # PyMuPDF for PDF processing
 import shutil  # For clearing temporary files
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.decomposition import LatentDirichletAllocation, NMF
+from sklearn.decomposition import NMF
 from sklearn.cluster import KMeans
 import nltk
 from collections import Counter
@@ -33,8 +33,9 @@ except LookupError:
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
     stop_words = set(stopwords.words(language))
+    linking_words = set(['and', 'or', 'but', 'so', 'because', 'however', 'therefore', 'moreover', 'thus', 'hence'])
     words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))  # Tokenize and clean text
-    return [word for word in words if word.isalnum() and word not in stop_words]
+    return [word for word in words if word.isalnum() and word not in stop_words and word not in linking_words]
 
 # Extract text from PDFs
 def extract_text_from_pdf(pdf_path):
@@ -48,6 +49,12 @@ def extract_text_from_pdf(pdf_path):
     except Exception as e:
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
+
+# Remove headers and footers
+def remove_headers_footers(text):
+    lines = text.split('\n')
+    cleaned_lines = [line for line in lines if len(line.split()) > 5]  # Remove lines with less than 5 words
+    return ' '.join(cleaned_lines)
 
 # Extract dates from text
 def extract_dates(text):
@@ -115,9 +122,9 @@ def nmf_topic_modeling_with_sentences(texts, num_topics=3):
             for sentence in sent_tokenize(text):
                 if any(word in sentence for word in topic_words):
                     sentences.append(sentence)
-                    if len(sentences) >= 5:  # Limit to 5 sentences per topic
+                    if len(sentences) >= 2:  # Limit to 2 sentences per topic
                         break
-            if len(sentences) >= 5:
+            if len(sentences) >= 2:
                 break
         topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences)}")
     return topics
@@ -158,6 +165,7 @@ if uploaded_files:
             f.write(uploaded_file.read())
 
         text = extract_text_from_pdf(pdf_path)
+        text = remove_headers_footers(text)
         if text.strip():
             pdf_texts.append({"filename": uploaded_file.name, "text": text})
         else:
