@@ -11,6 +11,7 @@ import nltk
 from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
+from datetime import datetime
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
@@ -55,7 +56,15 @@ def extract_dates(text):
     return dates
 
 # Analyze texts
-def analyze_texts_by_date(pdf_texts, top_n, language='english'):
+def analyze_texts(pdf_texts, top_n, language='english'):
+    all_text = " ".join([doc["text"] for doc in pdf_texts])
+    filtered_words = preprocess_text(all_text, language)
+    word_counts = Counter(filtered_words)
+    top_words = word_counts.most_common(top_n)
+    return top_words, word_counts
+
+# Analyze texts by date
+def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly'):
     date_word_counts = {}
     for doc in pdf_texts:
         text = doc["text"]
@@ -63,9 +72,30 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english'):
         filtered_words = preprocess_text(text, language)
         word_counts = Counter(filtered_words)
         for date in dates:
-            if date not in date_word_counts:
-                date_word_counts[date] = Counter()
-            date_word_counts[date].update(word_counts)
+            try:
+                date_obj = datetime.strptime(date, '%d %b %Y')
+            except ValueError:
+                try:
+                    date_obj = datetime.strptime(date, '%d/%m/%Y')
+                except ValueError:
+                    continue
+
+            if period == 'yearly':
+                date_key = date_obj.year
+            elif period == 'quarterly':
+                date_key = f"{date_obj.year}-Q{(date_obj.month - 1) // 3 + 1}"
+            elif period == 'half-yearly':
+                date_key = f"{date_obj.year}-H{(date_obj.month - 1) // 6 + 1}"
+            elif period == '3-years':
+                date_key = f"{date_obj.year // 3 * 3}-{date_obj.year // 3 * 3 + 2}"
+            elif period == '5-years':
+                date_key = f"{date_obj.year // 5 * 5}-{date_obj.year // 5 * 5 + 4}"
+            else:
+                date_key = date_obj.year
+
+            if date_key not in date_word_counts:
+                date_word_counts[date_key] = Counter()
+            date_word_counts[date_key].update(word_counts)
     
     top_words_by_date = {date: counts.most_common(top_n) for date, counts in date_word_counts.items()}
     return top_words_by_date
@@ -149,16 +179,21 @@ if uploaded_files:
         top_n = st.slider("Select number of top words to display", 1, 20, 10)
         if st.button("Analyze Texts"):
             if pdf_texts:  # Ensure there are uploaded documents
-                top_words_by_date = analyze_texts_by_date(pdf_texts, top_n)
-                st.write("### Top Words by Date")
-                for date, top_words in top_words_by_date.items():
-                    st.write(f"**{date}**")
-                    st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+                top_words, word_counts = analyze_texts(pdf_texts, top_n)
+                st.write("### Top Words Across Documents")
+                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
             else:
                 st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 
+        # Top words in each document
+        if st.button("Analyze Texts in Each Document"):
+            for doc in pdf_texts:
+                top_words, _ = analyze_texts([doc], top_n)
+                st.write(f"### Top Words in {doc['filename']}")
+                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+
         # Topic modeling and clustering
-        tabs = st.tabs(["Topic Modeling", "Word Frequency"])
+        tabs = st.tabs(["Topic Modeling", "Word Frequency", "Top Words by Date"])
 
         with tabs[0]:
             num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
@@ -229,5 +264,18 @@ if uploaded_files:
                     st.warning("Please enter a word to perform NMF.")
             else:
                 st.warning("Please enter a word to analyze.")
+
+        with tabs[2]:
+            st.header("Top Words by Date")
+            period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
+            if st.button("Analyze Texts by Date"):
+                if pdf_texts:  # Ensure there are uploaded documents
+                    top_words_by_date = analyze_texts_by_date(pdf_texts, top_n, period=period)
+                    st.write(f"### Top Words by {period.capitalize()}")
+                    for date, top_words in top_words_by_date.items():
+                        st.write(f"**{date}**")
+                        st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+                else:
+                    st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 else:
     st.info("Please upload some PDF files.")
