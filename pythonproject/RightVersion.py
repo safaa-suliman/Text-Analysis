@@ -10,7 +10,7 @@ from sklearn.cluster import KMeans
 import nltk
 from collections import Counter
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, sent_tokenize
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
@@ -23,11 +23,11 @@ try:
 except Exception as e:
     st.error(f"Error downloading NLTK resources: {e}")
 
-# Ensure punkt tab is available
+# Check if punkt data is available
 try:
-    nltk.download('punkt_tab', download_dir=nltk_data_path)
-except Exception as e:
-    st.error(f"Error downloading punkt_tab resource: {e}")
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', download_dir=nltk_data_path)
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
@@ -48,24 +48,27 @@ def extract_text_from_pdf(pdf_path):
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
 
+# Extract dates from text
+def extract_dates(text):
+    date_pattern = r'\b(?:\d{1,2}[-/th|st|nd|rd\s]*)?(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[-/,.\s]*\d{1,2}[-/,\s]*\d{2,4}\b|\b\d{1,2}[-/,\s]*\d{1,2}[-/,\s]*\d{2,4}\b'
+    dates = re.findall(date_pattern, text, re.IGNORECASE)
+    return dates
+
 # Analyze texts
-def analyze_texts(pdf_texts, top_n, language='english'):
-    """
-    Analyzes the combined text from multiple documents and returns the top N words with their frequencies.
-    """
-    # Combine all extracted text
-    all_text = " ".join([doc["text"] for doc in pdf_texts])
+def analyze_texts_by_date(pdf_texts, top_n, language='english'):
+    date_word_counts = {}
+    for doc in pdf_texts:
+        text = doc["text"]
+        dates = extract_dates(text)
+        filtered_words = preprocess_text(text, language)
+        word_counts = Counter(filtered_words)
+        for date in dates:
+            if date not in date_word_counts:
+                date_word_counts[date] = Counter()
+            date_word_counts[date].update(word_counts)
     
-    # Preprocess and filter text
-    filtered_words = preprocess_text(all_text, language)
-    
-    # Count word frequencies
-    word_counts = Counter(filtered_words)
-    
-    # Get the top N most common words
-    top_words = word_counts.most_common(top_n)
-    
-    return top_words, word_counts
+    top_words_by_date = {date: counts.most_common(top_n) for date, counts in date_word_counts.items()}
+    return top_words_by_date
 
 # Topic Modeling using LDA
 def topic_modeling(texts, num_topics=3):
@@ -142,21 +145,21 @@ if uploaded_files:
         csv_data = pdf_df.to_csv(index=False)
         st.download_button(label="Download CSV", data=csv_data, file_name="extracted_texts.csv", mime="text/csv")
 
-
         # Text analysis
         top_n = st.slider("Select number of top words to display", 1, 20, 10)
         if st.button("Analyze Texts"):
             if pdf_texts:  # Ensure there are uploaded documents
-                top_words, word_counts = analyze_texts(pdf_texts, top_n)
-                st.write("### Top Words Across Documents")
-                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+                top_words_by_date = analyze_texts_by_date(pdf_texts, top_n)
+                st.write("### Top Words by Date")
+                for date, top_words in top_words_by_date.items():
+                    st.write(f"**{date}**")
+                    st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
             else:
                 st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 
-
         # Topic modeling and clustering
         tabs = st.tabs(["Topic Modeling", "Word Frequency"])
-        
+
         with tabs[0]:
             num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
             lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
@@ -164,26 +167,25 @@ if uploaded_files:
             for topic in lda_topics:
                 st.write(topic)
 
-        
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
             nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
 
-        
             num_clusters = st.slider("Select number of clusters", 2, 10, 3)
             clusters = clustering(pdf_texts, num_clusters)
             pdf_df["Cluster"] = clusters
             st.write("### Clusters")
             st.dataframe(pdf_df)
+
         with tabs[1]:
             # Streamlit App - Add Specific Word Frequency Analysis
             st.header("Specific Word Frequency Analysis")
-            
+
             # Input for specific word analysis
             specific_word = st.text_input("Enter a word to analyze its frequency:")
-            
+
             if st.button("Calculate Frequency"):
                 if specific_word:
                     # Calculate frequency across all documents
@@ -201,14 +203,11 @@ if uploaded_files:
                             words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
                             doc_count = Counter(words).get(specific_word.lower(), 0)
                             doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
-                
+
                         # Display results
-                       
                         st.write("### Frequency in Each Document:")
                         st.table(pd.DataFrame(doc_frequencies))
 
-
-                
             # Slider for number of topics (moved outside button logic)
             num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
 
@@ -228,11 +227,7 @@ if uploaded_files:
                         st.warning(f"No documents contain the word '{specific_word}'.")
                 else:
                     st.warning("Please enter a word to perform NMF.")
-            
             else:
-                    st.warning("Please enter a word to analyze.")
-        
-
-
+                st.warning("Please enter a word to analyze.")
 else:
     st.info("Please upload some PDF files.")
