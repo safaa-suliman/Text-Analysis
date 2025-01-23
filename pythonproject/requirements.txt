@@ -5,3 +5,4 @@ nltk
 scikit-learn
 seaborn
 matplotlib
+transformers
