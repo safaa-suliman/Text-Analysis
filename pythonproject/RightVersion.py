@@ -100,30 +100,26 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly')
     top_words_by_date = {date: counts.most_common(top_n) for date, counts in date_word_counts.items()}
     return top_words_by_date
 
-# Topic Modeling using LDA
-def topic_modeling(texts, num_topics=3):
-    vectorizer = CountVectorizer(stop_words="english")
-    doc_term_matrix = vectorizer.fit_transform(texts)
-    lda_model = LatentDirichletAllocation(n_components=num_topics, random_state=42)
-    lda_model.fit(doc_term_matrix)
+# Topic modeling using NMF
+def nmf_topic_modeling_with_sentences(texts, num_topics=3):
+    vectorizer = TfidfVectorizer(stop_words='english')
+    dtm = vectorizer.fit_transform(texts)
+    nmf = NMF(n_components=num_topics, random_state=42)
+    nmf.fit(dtm)
     feature_names = vectorizer.get_feature_names_out()
     topics = []
-    for topic_idx, topic in enumerate(lda_model.components_):
-        top_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
-        topics.append(f"Topic {topic_idx + 1}: {', '.join(top_words)}")
-    return topics
-
-# Topic Modeling using NMF
-def nmf_topic_modeling(texts, num_topics=3):
-    vectorizer = CountVectorizer(stop_words="english")
-    doc_term_matrix = vectorizer.fit_transform(texts)
-    nmf_model = NMF(n_components=num_topics, random_state=42)
-    nmf_model.fit(doc_term_matrix)
-    feature_names = vectorizer.get_feature_names_out()
-    topics = []
-    for topic_idx, topic in enumerate(nmf_model.components_):
-        top_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
-        topics.append(f"Topic {topic_idx + 1}: {', '.join(top_words)}")
+    for topic_idx, topic in enumerate(nmf.components_):
+        topic_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
+        sentences = []
+        for text in texts:
+            for sentence in sent_tokenize(text):
+                if any(word in sentence for word in topic_words):
+                    sentences.append(sentence)
+                    if len(sentences) >= 5:  # Limit to 5 sentences per topic
+                        break
+            if len(sentences) >= 5:
+                break
+        topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences)}")
     return topics
 
 # Clustering using KMeans
@@ -196,14 +192,8 @@ if uploaded_files:
         tabs = st.tabs(["Topic Modeling", "Word Frequency", "Top Words by Date"])
 
         with tabs[0]:
-            num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
-            lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
-            st.write("### LDA Topics")
-            for topic in lda_topics:
-                st.write(topic)
-
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
-            nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            nmf_topics = nmf_topic_modeling_with_sentences([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
@@ -254,7 +244,7 @@ if uploaded_files:
 
                     if filtered_texts:
                         # Apply NMF to the filtered texts
-                        nmf_topics = nmf_topic_modeling(filtered_texts, num_topics=num_topics_nmf)
+                        nmf_topics = nmf_topic_modeling_with_sentences(filtered_texts, num_topics=num_topics_nmf)
                         st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
                         for topic in nmf_topics:
                             st.write(topic)
