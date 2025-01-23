@@ -3,31 +3,33 @@ import os
 import pandas as pd
 import fitz  # PyMuPDF for PDF processing
 import shutil  # For clearing temporary files
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation, NMF
+from sklearn.cluster import KMeans
 import nltk
 from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.decomposition import LatentDirichletAllocation
-from sklearn.cluster import KMeans
-from sklearn.decomposition import NMF  # Import NMF
-from sklearn.metrics.pairwise import cosine_similarity
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-# Download NLTK data
-nltk.download("punkt")
-nltk.download("stopwords")
+# Custom path for nltk_data
+nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
+nltk.data.path.append(nltk_data_path)
 
-# Set page configuration
-st.set_page_config(page_title="Document Analysis Webpage", page_icon="📄", layout="wide")
-st.subheader("Hi, This is a web for analyzing documents :wave:")
-st.title("A Data Analyst From Sudan")
-st.write("I am passionate about Data Science")
-st.write("[My GitHub >](https://github.com/safa-suliman)")
+# Ensure required NLTK resources are downloaded
+try:
+    nltk.download('punkt', download_dir=nltk_data_path)
+    nltk.download('stopwords', download_dir=nltk_data_path)
+except Exception as e:
+    st.error(f"Error downloading NLTK resources: {e}")
 
-# Define the function to extract text from a PDF
+# Text preprocessing using NLTK
+def preprocess_text(text, language='english'):
+    stop_words = set(stopwords.words(language))
+    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))  # Tokenize and clean text
+    return [word for word in words if word.isalnum() and word not in stop_words]
+
+# Extract text from PDFs
 def extract_text_from_pdf(pdf_path):
     try:
         doc = fitz.open(pdf_path)
@@ -40,49 +42,36 @@ def extract_text_from_pdf(pdf_path):
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
 
-# Topic Modeling with NMF
-def nmf_topic_modeling(texts, num_topics=3):
-    vectorizer = CountVectorizer(stop_words="english")
-    doc_term_matrix = vectorizer.fit_transform(texts)
-    nmf_model = NMF(n_components=num_topics, random_state=42)
-    nmf_model.fit(doc_term_matrix)
-
-    feature_names = vectorizer.get_feature_names_out()
-    topics = []
-    for topic_idx, topic in enumerate(nmf_model.components_):
-        top_words_nmf = [feature_names[i] for i in topic.argsort()[:-11:-1]]
-        topics.append(f"Topic {topic_idx + 1}: {', '.join(top_words_nmf)}")
-    return topics
-
-# Clear temporary folder
-def clear_temp_folder(folder="temp"):
-    if os.path.exists(folder):
-        shutil.rmtree(folder)
-    os.makedirs(folder, exist_ok=True)
-
-# Function to perform text analysis
-def analyze_texts(pdf_texts, top_n):
+# Analyze texts
+def analyze_texts(pdf_texts, top_n, language='english'):
     all_text = " ".join([doc["text"] for doc in pdf_texts])
-
-    stop_words = set(stopwords.words("english"))
-    words = word_tokenize(re.sub(r'\W+', ' ', all_text.lower()))
-    filtered_words = [word for word in words if word.isalnum() and word not in stop_words]
-
+    filtered_words = preprocess_text(all_text, language)
     word_counts = Counter(filtered_words)
     top_words = word_counts.most_common(top_n)
-
     return top_words, word_counts
 
-# Topic Modeling with LDA
+# Topic Modeling using LDA
 def topic_modeling(texts, num_topics=3):
     vectorizer = CountVectorizer(stop_words="english")
     doc_term_matrix = vectorizer.fit_transform(texts)
     lda_model = LatentDirichletAllocation(n_components=num_topics, random_state=42)
     lda_model.fit(doc_term_matrix)
-
     feature_names = vectorizer.get_feature_names_out()
     topics = []
     for topic_idx, topic in enumerate(lda_model.components_):
+        top_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
+        topics.append(f"Topic {topic_idx + 1}: {', '.join(top_words)}")
+    return topics
+
+# Topic Modeling using NMF
+def nmf_topic_modeling(texts, num_topics=3):
+    vectorizer = CountVectorizer(stop_words="english")
+    doc_term_matrix = vectorizer.fit_transform(texts)
+    nmf_model = NMF(n_components=num_topics, random_state=42)
+    nmf_model.fit(doc_term_matrix)
+    feature_names = vectorizer.get_feature_names_out()
+    topics = []
+    for topic_idx, topic in enumerate(nmf_model.components_):
         top_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
         topics.append(f"Topic {topic_idx + 1}: {', '.join(top_words)}")
     return topics
@@ -94,27 +83,23 @@ def clustering(pdf_texts, num_clusters=3):
     kmeans = KMeans(n_clusters=num_clusters, random_state=42).fit(tfidf_matrix)
     return kmeans.labels_
 
-# Function to find related words
-def find_related_words(texts, user_word, top_n=5):
-    vectorizer = TfidfVectorizer(stop_words="english")
-    tfidf_matrix = vectorizer.fit_transform(texts)
-    feature_names = vectorizer.get_feature_names_out()
-
-    if user_word not in feature_names:
-        return None, None
-
-    user_word_idx = feature_names.tolist().index(user_word)
-    user_word_vector = tfidf_matrix[:, user_word_idx]
-
-    word_similarities = cosine_similarity(user_word_vector.T, tfidf_matrix.T).flatten()
-    sorted_indices = word_similarities.argsort()[::-1][1:top_n + 1]
-    related_words = [(feature_names[i], word_similarities[i]) for i in sorted_indices]
-
-    return related_words
+# Clear temporary files
+def clear_temp_folder(folder="temp"):
+    if os.path.exists(folder):
+        try:
+            shutil.rmtree(folder)
+        except Exception as e:
+            print(f"Error removing {folder}: {e}")
+    os.makedirs(folder, exist_ok=True)
 
 # Streamlit App
-st.title("📂 Document Analysis - Enhanced Features")
+st.set_page_config(page_title="Document Analysis Webpage", page_icon="📄", layout="wide")
+st.subheader("Hi, This is a web for analyzing documents :wave:")
+st.title("A Data Analyst From Sudan")
+st.write("I am passionate about Data Science")
+st.write("[My GitHub >](https://github.com/safa-suliman)")
 
+# File uploader
 uploaded_files = st.file_uploader("Upload multiple PDF files", type="pdf", accept_multiple_files=True)
 
 if uploaded_files:
@@ -126,62 +111,101 @@ if uploaded_files:
         with open(pdf_path, "wb") as f:
             f.write(uploaded_file.read())
 
-        if uploaded_file.name.endswith(".pdf"):
-            text = extract_text_from_pdf(pdf_path)
-            if text.strip():
-                pdf_texts.append({"filename": uploaded_file.name, "text": text})
-            else:
-                st.warning(f"No text extracted from {uploaded_file.name}.")
+        text = extract_text_from_pdf(pdf_path)
+        if text.strip():
+            pdf_texts.append({"filename": uploaded_file.name, "text": text})
         else:
-            st.warning(f"Skipping non-PDF file: {uploaded_file.name}")
+            st.warning(f"File {uploaded_file.name} contains no readable text.")
 
-    if not pdf_texts:
-        st.error("No text could be extracted from the uploaded PDFs.")
-    else:
+    if pdf_texts:
         pdf_df = pd.DataFrame(pdf_texts)
-        st.write("### Extracted Data:")
+        st.write("### Extracted Data")
         st.dataframe(pdf_df)
-
+        # Option to download the DataFrame as a CSV
         csv_data = pdf_df.to_csv(index=False)
         st.download_button(label="Download CSV", data=csv_data, file_name="extracted_texts.csv", mime="text/csv")
 
-        top_n = st.slider("Select the number of top words to display", min_value=1, max_value=20, value=10)
-
+        # Text analysis
+        top_n = st.slider("Select number of top words to display", 1, 20, 10)
         if st.button("Analyze Texts"):
-            top_words, word_counts = analyze_texts(pdf_texts, top_n)
-            st.session_state.top_words = top_words
-            st.session_state.word_counts = word_counts
+            if pdf_texts:  # Ensure there are uploaded documents
+                top_words, word_counts = analyze_texts(pdf_texts, top_n)
+                st.write("### Top Words Across Documents")
+                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+            else:
+                st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 
-        if "top_words" in st.session_state:
-            st.write("### Top Words Across All Documents:")
-            st.table(pd.DataFrame(st.session_state.top_words, columns=["Word", "Frequency"]))
+        # Topic modeling and clustering
+        tabs = st.tabs(["Topic Modeling", "Word Frequency"])
 
-        specific_word = st.text_input("Enter a word to analyze its frequency:")
-        if st.button("Calculate Frequency"):
-            if specific_word:
-                specific_word_count = st.session_state.word_counts.get(specific_word.lower(), 0)
-                st.write(f"The word **'{specific_word}'** appears **{specific_word_count}** times.")
+        with tabs[0]:
+            num_topics = st.slider("Select number of LDA topics", 2, 10, 3)
+            lda_topics = topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            st.write("### LDA Topics")
+            for topic in lda_topics:
+                st.write(topic)
 
-        user_word = st.text_input("Enter a word to find related terms:")
-        if st.button("Find Related Words"):
-            texts_only = [doc["text"] for doc in pdf_texts]
-            related_words = find_related_words(texts_only, user_word.lower(), top_n=5)
-            if related_words:
-                st.write(f"### Words Related to **'{user_word}'**:")
-                st.table(pd.DataFrame(related_words, columns=["Word", "Similarity Score"]))
+            num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
+            nmf_topics = nmf_topic_modeling([doc["text"] for doc in pdf_texts], num_topics)
+            st.write("### NMF Topics")
+            for topic in nmf_topics:
+                st.write(topic)
 
-        num_topics = st.slider("Select the Number of Topics:", 2, 10, 3)
-        topics_lda = topic_modeling([doc["text"] for doc in pdf_texts], num_topics=num_topics)
-        st.write("### LDA Topic Modeling Results:")
-        for topic in topics_lda:
-            st.write(topic)
+            num_clusters = st.slider("Select number of clusters", 2, 10, 3)
+            clusters = clustering(pdf_texts, num_clusters)
+            pdf_df["Cluster"] = clusters
+            st.write("### Clusters")
+            st.dataframe(pdf_df)
 
-        clusters = clustering(pdf_texts, num_clusters=num_topics)
-        pdf_df["Cluster"] = clusters
-        st.write("### Clustered Documents:")
-        st.dataframe(pdf_df)
+        with tabs[1]:
+            # Streamlit App - Add Specific Word Frequency Analysis
+            st.header("Specific Word Frequency Analysis")
 
-        plt.figure(figsize=(10, 6))
-        sns.countplot(x=pdf_df["Cluster"])
-        plt.title("Document Cluster Distribution")
-        st.pyplot(plt)
+            # Input for specific word analysis
+            specific_word = st.text_input("Enter a word to analyze its frequency:")
+
+            if st.button("Calculate Frequency"):
+                if specific_word:
+                    # Calculate frequency across all documents
+                    combined_text = " ".join([doc["text"].lower() for doc in pdf_texts])
+                    all_words = word_tokenize(re.sub(r'\W+', ' ', combined_text))
+                    total_count = Counter(all_words).get(specific_word.lower(), 0)
+
+                    st.write(f"The word **'{specific_word}'** appears **{total_count}** times across all documents.")
+                    if total_count == 0:
+                        st.write("")
+                    else:
+                        # Calculate frequency per document
+                        doc_frequencies = []
+                        for doc in pdf_texts:
+                            words = word_tokenize(re.sub(r'\W+', ' ', doc["text"].lower()))
+                            doc_count = Counter(words).get(specific_word.lower(), 0)
+                            doc_frequencies.append({"Document": doc["filename"], "Frequency": doc_count})
+
+                        # Display results
+                        st.write("### Frequency in Each Document:")
+                        st.table(pd.DataFrame(doc_frequencies))
+
+            # Slider for number of topics (moved outside button logic)
+            num_topics_nmf = st.slider("Select the Number of Topics (NMF):", 2, 10, 3, key="num_topics_nmf_specific_word")
+
+            # Add button for applying NMF based on the specific word, with a unique key
+            if st.button("Apply NMF Based on Specific Word", key="apply_nmf_specific_word"):
+                if specific_word:
+                    # Filter texts based on the specific word
+                    filtered_texts = [doc["text"] for doc in pdf_texts if specific_word.lower() in doc["text"].lower()]
+
+                    if filtered_texts:
+                        # Apply NMF to the filtered texts
+                        nmf_topics = nmf_topic_modeling(filtered_texts, num_topics=num_topics_nmf)
+                        st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
+                        for topic in nmf_topics:
+                            st.write(topic)
+                    else:
+                        st.warning(f"No documents contain the word '{specific_word}'.")
+                else:
+                    st.warning("Please enter a word to perform NMF.")
+            else:
+                st.warning("Please enter a word to analyze.")
+else:
+    st.info("Please upload some PDF files.")
