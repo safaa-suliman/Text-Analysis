@@ -12,6 +12,7 @@ from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from datetime import datetime
+from transformers import pipeline
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
@@ -31,12 +32,7 @@ except LookupError:
     nltk.download('punkt', download_dir=nltk_data_path)
 
 # Initialize summarizer
-try:
-    from transformers import pipeline
-    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-except Exception as e:
-    st.error(f"Error initializing summarizer: {e}")
-    summarizer = None
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
@@ -135,11 +131,8 @@ def nmf_topic_modeling_with_summaries(texts, num_topics=3):
             if len(sentences) >= 5:
                 break
         combined_text = " ".join(sentences)
-        if summarizer:
-            summary = summarizer(combined_text, max_length=50, min_length=10, do_sample=False)
-            topics.append(f"Topic {topic_idx + 1}: {summary[0]['summary_text']}")
-        else:
-            topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences[:2])}")  # Fallback to first 2 sentences
+        summary = summarizer(combined_text, max_length=50, min_length=10, do_sample=False)
+        topics.append(f"Topic {topic_idx + 1}: {summary[0]['summary_text']}")
     return topics
 
 # Clustering using KMeans
