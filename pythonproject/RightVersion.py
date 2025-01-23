@@ -5,7 +5,7 @@ import fitz  # PyMuPDF for PDF processing
 import shutil  # For clearing temporary files
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.decomposition import NMF
+from sklearn.decomposition import LatentDirichletAllocation, NMF
 from sklearn.cluster import KMeans
 import nltk
 from collections import Counter
@@ -29,6 +29,14 @@ try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
     nltk.download('punkt', download_dir=nltk_data_path)
+
+# Initialize summarizer
+try:
+    from transformers import pipeline
+    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+except Exception as e:
+    st.error(f"Error initializing summarizer: {e}")
+    summarizer = None
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
@@ -107,8 +115,8 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly')
     top_words_by_date = {date: counts.most_common(top_n) for date, counts in date_word_counts.items()}
     return top_words_by_date
 
-# Topic modeling using NMF
-def nmf_topic_modeling_with_sentences(texts, num_topics=3):
+# Topic modeling using NMF with summarization
+def nmf_topic_modeling_with_summaries(texts, num_topics=3):
     vectorizer = TfidfVectorizer(stop_words='english')
     dtm = vectorizer.fit_transform(texts)
     nmf = NMF(n_components=num_topics, random_state=42)
@@ -122,11 +130,16 @@ def nmf_topic_modeling_with_sentences(texts, num_topics=3):
             for sentence in sent_tokenize(text):
                 if any(word in sentence for word in topic_words):
                     sentences.append(sentence)
-                    if len(sentences) >= 2:  # Limit to 2 sentences per topic
+                    if len(sentences) >= 5:  # Collect up to 5 sentences per topic
                         break
-            if len(sentences) >= 2:
+            if len(sentences) >= 5:
                 break
-        topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences)}")
+        combined_text = " ".join(sentences)
+        if summarizer:
+            summary = summarizer(combined_text, max_length=50, min_length=10, do_sample=False)
+            topics.append(f"Topic {topic_idx + 1}: {summary[0]['summary_text']}")
+        else:
+            topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences[:2])}")  # Fallback to first 2 sentences
     return topics
 
 # Clustering using KMeans
@@ -201,7 +214,7 @@ if uploaded_files:
 
         with tabs[0]:
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
-            nmf_topics = nmf_topic_modeling_with_sentences([doc["text"] for doc in pdf_texts], num_topics)
+            nmf_topics = nmf_topic_modeling_with_summaries([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
@@ -252,7 +265,7 @@ if uploaded_files:
 
                     if filtered_texts:
                         # Apply NMF to the filtered texts
-                        nmf_topics = nmf_topic_modeling_with_sentences(filtered_texts, num_topics=num_topics_nmf)
+                        nmf_topics = nmf_topic_modeling_with_summaries(filtered_texts, num_topics=num_topics_nmf)
                         st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
                         for topic in nmf_topics:
                             st.write(topic)
