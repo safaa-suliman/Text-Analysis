@@ -10,7 +10,7 @@ from sklearn.cluster import KMeans
 import nltk
 from collections import Counter
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, sent_tokenize
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
