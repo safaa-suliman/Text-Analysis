@@ -23,6 +23,12 @@ try:
 except Exception as e:
     st.error(f"Error downloading NLTK resources: {e}")
 
+# Check if punkt data is available
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', download_dir=nltk_data_path)
+
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
     stop_words = set(stopwords.words(language))
