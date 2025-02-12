@@ -18,12 +18,13 @@ nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
 nltk.data.path.append(nltk_data_path)
 
 # Ensure required NLTK resources are downloaded
-try:
-    nltk.download('punkt', download_dir=nltk_data_path)
-    nltk.download('stopwords', download_dir=nltk_data_path)
-except Exception as e:
-    st.error(f"Error downloading NLTK resources: {e}")
+required_nltk_resources = ['punkt', 'stopwords']
 
+for resource in required_nltk_resources:
+    try:
+        nltk.data.find(f'tokenizers/{resource}')
+    except LookupError:
+        nltk.download(resource, download_dir=nltk_data_path)
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
