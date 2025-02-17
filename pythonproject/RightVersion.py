@@ -132,9 +132,15 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly')
             if date_key not in date_word_counts:
                 date_word_counts[date_key] = Counter()
             date_word_counts[date_key].update(word_counts)
+            # Count specific word frequency
+            if specifc_word:
+                specifc_word_lower = specfic_word.lower()
+                if date_key not in specifc_word_counts:
+                    specifc_word_counts[date_key] = 0
+                specifc_word_counts[date_key] += word_counts.get(specific_word_lower, 0)
     
     top_words_by_date = {date: counts.most_common(top_n) for date, counts in date_word_counts.items()}
-    return top_words_by_date
+    return top_words_by_date, specifc_word_counts
 
 # Topic modeling using NMF
 def nmf_topic_modeling_with_sentences(texts, num_topics=3):
@@ -296,7 +302,8 @@ if uploaded_files:
             st.header("Top Words by Date")
             period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
             # Input for specific word analysis
-            spec_word = st.text_input("Enter a word to analyze its frequency:")
+            specifc_word = st.text_input("Enter a specific word to analyze its frequency (optional)")
+
             if st.button("Analyze Texts by Date"):
                 if pdf_texts:  # Ensure there are uploaded documents
                     top_words_by_date = analyze_texts_by_date(pdf_texts, top_n, period=period)
@@ -304,6 +311,10 @@ if uploaded_files:
                     for date, top_words in top_words_by_date.items():
                         st.write(f"**{date}**")
                         st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+                if specific_word:
+                    st.write(f"### Frequency of the word '{specific_word}' by {period.capitalize()}")
+                    specific_word_df = pd.DataFrame(list(specific_word_counts.items()), columns=["Date", "Frequency"])
+                    st.table(specific_word_df)
                 else:
                     st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 
