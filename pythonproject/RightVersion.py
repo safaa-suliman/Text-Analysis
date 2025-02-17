@@ -13,6 +13,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from datetime import datetime
 nltk.download('punkt')
+from nltk.tokenize import word_tokenize
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
@@ -32,12 +33,24 @@ except LookupError:
     nltk.download('punkt', download_dir=nltk_data_path)
 
 # Text preprocessing using NLTK
-def preprocess_text(text, language='english'):
-    stop_words = set(stopwords.words(language))
-    linking_words = set(['and', 'or', 'but', 'so', 'because', 'however', 'therefore', 'moreover', 'thus', 'hence'])
-    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))  # Tokenize and clean text
-    return [word for word in words if word.isalnum() and word not in stop_words and word not in linking_words]
+#def preprocess_text(text, language='english'):
+ #   stop_words = set(stopwords.words(language))
+  #  linking_words = set(['and', 'or', 'but', 'so', 'because', 'however', 'therefore', 'moreover', 'thus', 'hence'])
+   # words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))  # Tokenize and clean text
+    #return [word for word in words if word.isalnum() and word not in stop_words and word not in linking_words]
 
+
+
+
+def preprocess_text(text, language='english'):
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt')
+    
+    # Tokenize and clean text
+    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))
+    return words
 # Extract text from PDFs
 def extract_text_from_pdf(pdf_path):
     try:
