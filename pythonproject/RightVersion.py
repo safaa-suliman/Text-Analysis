@@ -295,6 +295,8 @@ if uploaded_files:
         with tabs[2]:
             st.header("Top Words by Date")
             period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
+            # Input for specific word analysis
+            spec_word = st.text_input("Enter a word to analyze its frequency:")
             if st.button("Analyze Texts by Date"):
                 if pdf_texts:  # Ensure there are uploaded documents
                     top_words_by_date = analyze_texts_by_date(pdf_texts, top_n, period=period)
@@ -305,7 +307,6 @@ if uploaded_files:
                 else:
                     st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 
-            # Input for specific word analysis
-            spec_word = st.text_input("Enter a word to analyze its frequency:")
+            
 else:
     st.info("Please upload some PDF files.")
