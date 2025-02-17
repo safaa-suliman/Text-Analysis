@@ -38,13 +38,17 @@ def preprocess_text(text, language='english'):
         nltk.data.find('tokenizers/punkt')
     except LookupError:
         nltk.download('punkt')
-    
-    # Tokenize and clean text
-    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))
+
+    #Convert text to lowercase
+    text = text.lower()
+    # Remove punctuation and special characters
+    text = re.sub(r'\W+', ' ', text)
+    # Tokenize the text into individual words
+    words = word_tokenize(text)
+    # Remove stop words
     stop_words = set(stopwords.words(language))
-    linking_words = set(['and', 'or', 'but', 'so', 'because', 'however', 'therefore', 'moreover', 'thus', 'hence'])
-    words = word_tokenize(re.sub(r'\W+', ' ', text.lower()))  # Tokenize and clean text
-    return [word for word in words if word.isalnum() and word not in stop_words and word not in linking_words]
+    filtered_words = [word for word in words if word not in stop_words]
+    return filtered_words
 
 
 
@@ -92,6 +96,9 @@ def analyze_texts(pdf_texts, top_n, language='english'):
     word_counts = Counter(filtered_words)
     top_words = word_counts.most_common(top_n)
     return top_words, word_counts
+
+
+
 
 # Analyze texts by date
 def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly'):
