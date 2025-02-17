@@ -12,6 +12,7 @@ from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from datetime import datetime
+nltk.download('punkt')
 
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
