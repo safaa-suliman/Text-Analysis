@@ -310,8 +310,8 @@ if uploaded_files:
                     top_words_by_date, target_word_counts = analyze_texts_by_date(pdf_texts, top_n, period=period, target_word=target_word)
                     st.write(f"### Top Words by {period.capitalize()}")
                     for date, top_words in top_words_by_date.items():
-                    st.write(f"**{date}**")
-                    st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
+                        st.write(f"**{date}**")
+                        st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
 
                     if target_word:
                         st.write(f"### Frequency of the word '{target_word}' by {period.capitalize()}")
