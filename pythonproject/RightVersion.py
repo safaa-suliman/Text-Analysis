@@ -304,5 +304,8 @@ if uploaded_files:
                         st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
                 else:
                     st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
+
+            # Input for specific word analysis
+            spec_word = st.text_input("Enter a word to analyze its frequency:")
 else:
     st.info("Please upload some PDF files.")
