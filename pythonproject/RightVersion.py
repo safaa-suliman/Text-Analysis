@@ -97,22 +97,14 @@ def analyze_texts(pdf_texts, top_n, language='english'):
     return top_words, word_counts
 
 
-
-
-
-
-
-# Analyze texts by date
-def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly', specific_word=None):
+def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly', target_word=None):
     date_word_counts = {}
-    specific_word_counts = {}  # Dictionary to store specific word counts by date
-
+    target_word_counts = {}
     for doc in pdf_texts:
         text = doc["text"]
         dates = extract_dates(text)
         filtered_words = preprocess_text(text, language)
         word_counts = Counter(filtered_words)
-
         for date in dates:
             try:
                 date_obj = datetime.strptime(date, '%d %b %Y')
@@ -122,7 +114,6 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
                 except ValueError:
                     continue
 
-            # Determine the date key based on the selected period
             if period == 'yearly':
                 date_key = date_obj.year
             elif period == 'quarterly':
@@ -136,22 +127,22 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
             else:
                 date_key = date_obj.year
 
-            # Update word counts for the date
             if date_key not in date_word_counts:
                 date_word_counts[date_key] = Counter()
             date_word_counts[date_key].update(word_counts)
 
-            # Count specific word frequency if provided
-            if specific_word:
-                specific_word_lower = specific_word.lower()
-                if date_key not in specific_word_counts:
-                    specific_word_counts[date_key] = 0
-                specific_word_counts[date_key] += word_counts.get(specific_word_lower, 0)
+            # Count the frequency of the target word
+            if target_word:
+                target_word_lower = target_word.lower()
+                if date_key not in target_word_counts:
+                    target_word_counts[date_key] = 0
+                target_word_counts[date_key] += word_counts.get(target_word_lower, 0)
 
-    # Get the top words by date
     top_words_by_date = {date: counts.most_common(top_n) for date, counts in date_word_counts.items()}
+    return top_words_by_date, target_word_counts
+    
 
-    return top_words_by_date, specific_word_counts
+
     
 # Topic modeling using NMF
 def nmf_topic_modeling_with_sentences(texts, num_topics=3):
@@ -312,30 +303,22 @@ if uploaded_files:
         with tabs[2]:
             st.header("Top Words by Date")
             period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
-            #top_n = st.number_input("Enter the number of top words to display", min_value=1, value=10)
-            specific_word = st.text_input("Enter a specific word to analyze its frequency (optional)")
+            target_word = st.text_input("Enter a specific word to analyze its frequency (optional)")
 
             if st.button("Analyze Texts by Date"):
                 if pdf_texts:  # Ensure there are uploaded documents
-                  # Analyze texts by date
-                    top_words_by_date, specific_word_counts = analyze_texts_by_date(
-                    pdf_texts, top_n, period=period, specific_word=specific_word
-                )
+                    top_words_by_date, target_word_counts = analyze_texts_by_date(pdf_texts, top_n, period=period, target_word=target_word)
+                    st.write(f"### Top Words by {period.capitalize()}")
+                    for date, top_words in top_words_by_date.items():
+                    st.write(f"**{date}**")
+                    st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
 
-            # Display top words by date
-            st.write(f"### Top Words by {period.capitalize()}")
-            for date, top_words in top_words_by_date.items():
-                st.write(f"**{date}**")
-                st.table(pd.DataFrame(top_words, columns=["Word", "Frequency"]))
-
-            # Display specific word frequency if provided
-            if specific_word:
-                st.write(f"### Frequency of the word '{specific_word}' by {period.capitalize()}")
-                specific_word_df = pd.DataFrame(list(specific_word_counts.items()), columns=["Date", "Frequency"])
-                st.table(specific_word_df)
+                    if target_word:
+                        st.write(f"### Frequency of the word '{target_word}' by {period.capitalize()}")
+                        target_word_df = pd.DataFrame(list(target_word_counts.items()), columns=["Date", "Frequency"])
+                        st.table(target_word_df)
             else:
-                    st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
-
+                st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
             
 else:
     st.info("Please upload some PDF files.")
