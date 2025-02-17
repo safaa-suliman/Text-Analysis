@@ -34,12 +34,12 @@ except LookupError:
 
 # Text preprocessing using NLTK
 def preprocess_text(text, language='english'):
- try:
+    try:
         nltk.data.find('tokenizers/punkt')
     except LookupError:
         nltk.download('punkt')
 
-    #Convert text to lowercase
+    # Convert text to lowercase
     text = text.lower()
     # Remove punctuation and special characters
     text = re.sub(r'\W+', ' ', text)
@@ -49,7 +49,6 @@ def preprocess_text(text, language='english'):
     stop_words = set(stopwords.words(language))
     filtered_words = [word for word in words if word not in stop_words]
     return filtered_words
-
 
 
 
