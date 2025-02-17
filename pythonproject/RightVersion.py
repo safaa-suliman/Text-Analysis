@@ -312,7 +312,7 @@ if uploaded_files:
         with tabs[2]:
             st.header("Top Words by Date")
             period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
-            top_n = st.number_input("Enter the number of top words to display", min_value=1, value=10)
+            #top_n = st.number_input("Enter the number of top words to display", min_value=1, value=10)
             specific_word = st.text_input("Enter a specific word to analyze its frequency (optional)")
 
             if st.button("Analyze Texts by Date"):
