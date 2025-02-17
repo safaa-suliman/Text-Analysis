@@ -333,7 +333,7 @@ if uploaded_files:
                 st.write(f"### Frequency of the word '{specific_word}' by {period.capitalize()}")
                 specific_word_df = pd.DataFrame(list(specific_word_counts.items()), columns=["Date", "Frequency"])
                 st.table(specific_word_df)
-                else:
+            else:
                     st.warning("No documents uploaded or text extracted. Please upload valid PDF files.")
 
             
