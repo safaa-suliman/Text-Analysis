@@ -318,8 +318,8 @@ if uploaded_files:
             if st.button("Analyze Texts by Date"):
                 if pdf_texts:  # Ensure there are uploaded documents
                   # Analyze texts by date
-                top_words_by_date, specific_word_counts = analyze_texts_by_date(
-                pdf_texts, top_n, period=period, specific_word=specific_word
+                    top_words_by_date, specific_word_counts = analyze_texts_by_date(
+                    pdf_texts, top_n, period=period, specific_word=specific_word
                 )
 
             # Display top words by date
