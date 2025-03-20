@@ -15,6 +15,11 @@ from datetime import datetime
 nltk.download('punkt')
 from nltk.tokenize import word_tokenize
 
+# Topic modeling using NMF
+from sklearn.decomposition import TruncatedSVD
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.tokenize import sent_tokenize
+
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
 nltk.data.path.append(nltk_data_path)
@@ -155,16 +160,27 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
 
 
     
-# Topic modeling using NMF
+
+
 def nmf_topic_modeling_with_sentences(texts, num_topics=3):
+    # Step 1: Vectorize the text using TF-IDF
     vectorizer = TfidfVectorizer(stop_words='english')
     dtm = vectorizer.fit_transform(texts)
-    nmf = NMF(n_components=num_topics, random_state=42)
-    nmf.fit(dtm)
+    
+    # Step 2: Apply LSA using TruncatedSVD
+    lsa = TruncatedSVD(n_components=num_topics, random_state=42)
+    lsa.fit(dtm)
+    
+    # Step 3: Extract feature names (words)
     feature_names = vectorizer.get_feature_names_out()
+    
+    # Step 4: Extract topics and related sentences
     topics = []
-    for topic_idx, topic in enumerate(nmf.components_):
+    for topic_idx, topic in enumerate(lsa.components_):
+        # Get the top words for the topic
         topic_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
+        
+        # Find sentences containing the top words
         sentences = []
         for text in texts:
             for sentence in sent_tokenize(text):
@@ -174,7 +190,10 @@ def nmf_topic_modeling_with_sentences(texts, num_topics=3):
                         break
             if len(sentences) >= 2:
                 break
+        
+        # Append the topic and its representative sentences
         topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences)}")
+    
     return topics
 
 # Clustering using KMeans
