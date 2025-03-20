@@ -125,6 +125,8 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
 
             if period == 'yearly':
                 date_key = date_obj.year
+            elif period == 'Monthly':
+                date_key = f"{date_obj.year}-{date_obj.month:02d}"
             elif period == 'quarterly':
                 date_key = f"{date_obj.year}-Q{(date_obj.month - 1) // 3 + 1}"
             elif period == 'half-yearly':
