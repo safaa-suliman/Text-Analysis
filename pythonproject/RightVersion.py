@@ -81,6 +81,52 @@ def extract_text_from_pdf(pdf_path):
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
 
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
+import numpy as np
+
+def lsa_text_summarization(texts, num_topics=1, num_sentences=2):
+    # Create a TF-IDF Vectorizer
+    vectorizer = TfidfVectorizer(stop_words='english')
+    dtm = vectorizer.fit_transform(texts)  # Document-Term Matrix
+
+    # Apply LSA using Truncated SVD
+    lsa = TruncatedSVD(n_components=num_topics, random_state=42)
+    lsa.fit(dtm)
+
+    # Get the terms associated with each topic
+    feature_names = vectorizer.get_feature_names_out()
+    topic_terms = []
+    for topic_idx, topic in enumerate(lsa.components_):
+        topic_terms.append([feature_names[i] for i in topic.argsort()[:-11:-1]])
+
+    # Extract sentences from the original texts
+    sentences = []
+    for text in texts:
+        sentences.extend(sent_tokenize(text))
+
+    # Score sentences based on their contribution to the topics
+    sentence_scores = np.zeros(len(sentences))
+    for topic in topic_terms:
+        for word in topic:
+            for i, sentence in enumerate(sentences):
+                if word in sentence:
+                    sentence_scores[i] += 1
+
+    # Get the top N sentences based on their scores
+    ranked_sentences = [sentences[i] for i in sentence_scores.argsort()[-num_sentences:][::-1]]
+    
+    return ' '.join(ranked_sentences)
+
+# Example usage
+texts = [
+    "Natural language processing (NLP) is a field of artificial intelligence that focuses on the interaction between computers and humans through natural language.",
+    "NLP enables computers to understand, interpret, and generate human language in a valuable way."
+]
+summary = lsa_text_summarization(texts, num_topics=1, num_sentences=2)
+print(summary)
+
 # Remove headers and footers
 def remove_headers_footers(text):
     lines = text.split('\n')
@@ -268,7 +314,7 @@ if uploaded_files:
 
         with tabs[0]:
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
-            nmf_topics = nmf_topic_modeling_with_sentences([doc["text"] for doc in pdf_texts], num_topics)
+            nmf_topics = lsa_text_summarization([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
@@ -319,7 +365,7 @@ if uploaded_files:
 
                     if filtered_texts:
                         # Apply NMF to the filtered texts
-                        nmf_topics = nmf_topic_modeling_with_sentences(filtered_texts, num_topics=num_topics_nmf)
+                        nmf_topics = lsa_text_summarization(filtered_texts, num_topics=num_topics_nmf)
                         st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
                         for topic in nmf_topics:
                             st.write(topic)
