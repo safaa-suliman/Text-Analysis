@@ -15,11 +15,6 @@ from datetime import datetime
 nltk.download('punkt')
 from nltk.tokenize import word_tokenize
 
-# Topic modeling using NMF
-from sklearn.decomposition import TruncatedSVD
-from sklearn.feature_extraction.text import TfidfVectorizer
-from nltk.tokenize import sent_tokenize
-
 # Custom path for nltk_data
 nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
 nltk.data.path.append(nltk_data_path)
@@ -81,52 +76,6 @@ def extract_text_from_pdf(pdf_path):
         st.error(f"Error processing {pdf_path}: {e}")
         return ""
 
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.decomposition import TruncatedSVD
-import numpy as np
-
-def lsa_text_summarization(texts, num_topics=1, num_sentences=2):
-    # Create a TF-IDF Vectorizer
-    vectorizer = TfidfVectorizer(stop_words='english')
-    dtm = vectorizer.fit_transform(texts)  # Document-Term Matrix
-
-    # Apply LSA using Truncated SVD
-    lsa = TruncatedSVD(n_components=num_topics, random_state=42)
-    lsa.fit(dtm)
-
-    # Get the terms associated with each topic
-    feature_names = vectorizer.get_feature_names_out()
-    topic_terms = []
-    for topic_idx, topic in enumerate(lsa.components_):
-        topic_terms.append([feature_names[i] for i in topic.argsort()[:-11:-1]])
-
-    # Extract sentences from the original texts
-    sentences = []
-    for text in texts:
-        sentences.extend(sent_tokenize(text))
-
-    # Score sentences based on their contribution to the topics
-    sentence_scores = np.zeros(len(sentences))
-    for topic in topic_terms:
-        for word in topic:
-            for i, sentence in enumerate(sentences):
-                if word in sentence:
-                    sentence_scores[i] += 1
-
-    # Get the top N sentences based on their scores
-    ranked_sentences = [sentences[i] for i in sentence_scores.argsort()[-num_sentences:][::-1]]
-    
-    return ' '.join(ranked_sentences)
-
-# Example usage
-texts = [
-    "Natural language processing (NLP) is a field of artificial intelligence that focuses on the interaction between computers and humans through natural language.",
-    "NLP enables computers to understand, interpret, and generate human language in a valuable way."
-]
-summary = lsa_text_summarization(texts, num_topics=1, num_sentences=2)
-print(summary)
-
 # Remove headers and footers
 def remove_headers_footers(text):
     lines = text.split('\n')
@@ -148,19 +97,14 @@ def analyze_texts(pdf_texts, top_n, language='english'):
     return top_words, word_counts
 
 
-from collections import Counter
-from datetime import datetime
-
-def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly', target_word=None, target_month=None):
+def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly', target_word=None):
     date_word_counts = {}
     target_word_counts = {}
-    
     for doc in pdf_texts:
         text = doc["text"]
         dates = extract_dates(text)
         filtered_words = preprocess_text(text, language)
         word_counts = Counter(filtered_words)
-        
         for date in dates:
             try:
                 date_obj = datetime.strptime(date, '%d %b %Y')
@@ -170,14 +114,8 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
                 except ValueError:
                     continue
 
-            # Filter by month if specified
-            if target_month and date_obj.month != target_month:
-                continue
-
             if period == 'yearly':
                 date_key = date_obj.year
-            elif period == 'Monthly':
-                date_key = f"{date_obj.year}-{date_obj.month:02d}"
             elif period == 'quarterly':
                 date_key = f"{date_obj.year}-Q{(date_obj.month - 1) // 3 + 1}"
             elif period == 'half-yearly':
@@ -206,27 +144,16 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
 
 
     
-
-
+# Topic modeling using NMF
 def nmf_topic_modeling_with_sentences(texts, num_topics=3):
-    # Step 1: Vectorize the text using TF-IDF
     vectorizer = TfidfVectorizer(stop_words='english')
     dtm = vectorizer.fit_transform(texts)
-    
-    # Step 2: Apply LSA using TruncatedSVD
-    lsa = TruncatedSVD(n_components=num_topics, random_state=42)
-    lsa.fit(dtm)
-    
-    # Step 3: Extract feature names (words)
+    nmf = NMF(n_components=num_topics, random_state=42)
+    nmf.fit(dtm)
     feature_names = vectorizer.get_feature_names_out()
-    
-    # Step 4: Extract topics and related sentences
     topics = []
-    for topic_idx, topic in enumerate(lsa.components_):
-        # Get the top words for the topic
+    for topic_idx, topic in enumerate(nmf.components_):
         topic_words = [feature_names[i] for i in topic.argsort()[:-11:-1]]
-        
-        # Find sentences containing the top words
         sentences = []
         for text in texts:
             for sentence in sent_tokenize(text):
@@ -236,10 +163,7 @@ def nmf_topic_modeling_with_sentences(texts, num_topics=3):
                         break
             if len(sentences) >= 2:
                 break
-        
-        # Append the topic and its representative sentences
         topics.append(f"Topic {topic_idx + 1}: {' '.join(sentences)}")
-    
     return topics
 
 # Clustering using KMeans
@@ -314,7 +238,7 @@ if uploaded_files:
 
         with tabs[0]:
             num_topics = st.slider("Select number of NMF topics", 2, 10, 3)
-            nmf_topics = lsa_text_summarization([doc["text"] for doc in pdf_texts], num_topics)
+            nmf_topics = nmf_topic_modeling_with_sentences([doc["text"] for doc in pdf_texts], num_topics)
             st.write("### NMF Topics")
             for topic in nmf_topics:
                 st.write(topic)
@@ -365,7 +289,7 @@ if uploaded_files:
 
                     if filtered_texts:
                         # Apply NMF to the filtered texts
-                        nmf_topics = lsa_text_summarization(filtered_texts, num_topics=num_topics_nmf)
+                        nmf_topics = nmf_topic_modeling_with_sentences(filtered_texts, num_topics=num_topics_nmf)
                         st.write(f"### NMF Topic Modeling Results for documents containing the word '{specific_word}':")
                         for topic in nmf_topics:
                             st.write(topic)
@@ -378,7 +302,7 @@ if uploaded_files:
 
         with tabs[2]:
             st.header("Top Words by Date")
-            period = st.selectbox("Select period for date analysis", ["Monthly","yearly", "quarterly", "half-yearly", "3-years", "5-years"])
+            period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
             target_word = st.text_input("Enter a specific word to analyze its frequency (optional)")
 
             if st.button("Analyze Texts by Date"):
