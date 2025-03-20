@@ -97,14 +97,19 @@ def analyze_texts(pdf_texts, top_n, language='english'):
     return top_words, word_counts
 
 
-def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly', target_word=None):
+from collections import Counter
+from datetime import datetime
+
+def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly', target_word=None, target_month=None):
     date_word_counts = {}
     target_word_counts = {}
+    
     for doc in pdf_texts:
         text = doc["text"]
         dates = extract_dates(text)
         filtered_words = preprocess_text(text, language)
         word_counts = Counter(filtered_words)
+        
         for date in dates:
             try:
                 date_obj = datetime.strptime(date, '%d %b %Y')
@@ -113,6 +118,10 @@ def analyze_texts_by_date(pdf_texts, top_n, language='english', period='yearly',
                     date_obj = datetime.strptime(date, '%d/%m/%Y')
                 except ValueError:
                     continue
+
+            # Filter by month if specified
+            if target_month and date_obj.month != target_month:
+                continue
 
             if period == 'yearly':
                 date_key = date_obj.year
@@ -302,7 +311,7 @@ if uploaded_files:
 
         with tabs[2]:
             st.header("Top Words by Date")
-            period = st.selectbox("Select period for date analysis", ["yearly", "quarterly", "half-yearly", "3-years", "5-years"])
+            period = st.selectbox("Select period for date analysis", ["Monthly","yearly", "quarterly", "half-yearly", "3-years", "5-years"])
             target_word = st.text_input("Enter a specific word to analyze its frequency (optional)")
 
             if st.button("Analyze Texts by Date"):
